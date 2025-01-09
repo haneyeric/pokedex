@@ -5,31 +5,94 @@ import (
 	"fmt"
 	"os"
 	"strings"
+
+	"github.com/haneyeric/pokedex/internal/pokeapi"
+	"github.com/haneyeric/pokedex/internal/pokecache"
 )
 
-func startRepl() {
-	scn := bufio.NewScanner(os.Stdin)
+type config struct {
+	pokeapiClient    pokeapi.Client
+	nextLocationsURL *string
+	prevLocationsURL *string
+	pokedex                   map[string]pokeapi.RespPokemon
+	locationCache pokecache.Cache
+}
 
+func startRepl(cfg *config) {
+	reader := bufio.NewScanner(os.Stdin)
 	for {
 		fmt.Print("Pokedex > ")
-		if scn.Scan() {
-			input := scn.Text()
-			word := cleanInput(input)[0]
-			cmd, ok := commands[word]
-			if !ok {
-				fmt.Printf("%s is not a known command, try help for more info", word)
-			} else {
-				err := cmd.callback()
-				if err != nil {
-					fmt.Printf("Couldn't execute command: %s\n", err)
-				}
+		reader.Scan()
+
+		words := cleanInput(reader.Text())
+		if len(words) == 0 {
+			continue
+		}
+
+		commandName := words[0]
+
+		command, exists := getCommands()[commandName]
+		if exists {
+			err := command.callback(cfg, words)
+			if err != nil {
+				fmt.Println(err)
 			}
+			continue
+		} else {
+			fmt.Println("Unknown command")
+			continue
 		}
 	}
 }
 
 func cleanInput(text string) []string {
-	lower := strings.ToLower(text)
-	words := strings.Fields(lower)
+	output := strings.ToLower(text)
+	words := strings.Fields(output)
 	return words
+}
+
+type cliCommand struct {
+	name        string
+	description string
+	callback    func(*config, []string) error
+}
+
+func getCommands() map[string]cliCommand {
+	return map[string]cliCommand{
+		"help": {
+			name:        "help",
+			description: "Displays a help message",
+			callback:    commandHelp,
+		},
+		"map": {
+			name:        "map",
+			description: "Get the next page of locations",
+			callback:    commandMapf,
+		},
+		"mapb": {
+			name:        "mapb",
+			description: "Get the previous page of locations",
+			callback:    commandMapb,
+		},
+		"exit": {
+			name:        "exit",
+			description: "Exit the Pokedex",
+			callback:    commandExit,
+		},
+		"explore": {
+			name:        "explore <location area>",
+			description: "Explore a location area",
+			callback:    commandExplore,
+		},
+		"catch": {
+			name:        "catch <pokemon name>",
+			description: "Try to catch a pokemon",
+			callback:    commandCatch,
+		},
+		"inspect": {
+			name:        "inspect <pokemon name>",
+			description: "View info about caught pokemon",
+			callback:    commandInspect,
+		},
+	}
 }
