@@ -24,3 +24,11 @@ func commandInspect(cfg *config, params []string) error {
 	}
 	return nil
 }
+
+func commandPokedex(cfg *config, _ []string) error {
+	fmt.Println("Your Pokedex:")
+	for p := range cfg.pokedex {
+		fmt.Printf(" - %s\n", p)
+	}
+	return nil
+}
